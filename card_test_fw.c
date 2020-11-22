@@ -12,16 +12,16 @@
 #include "uart.h"
 #include "USI_TWI_Master.h"
 
-#include "catb.h"
+#include "ina219.h"
+#include "card_test_fw.h"
 
-//#define ADDR_DIGIPOT 0b0101111
 #define ADDR_FBDAC   0b1100000
-#define ADDR_CURRMON 0b1000000
 
 #define S_CMD 0
 #define S_RD  1
 #define S_WR  2
 #define S_BK  3
+
 
 #ifdef CARD_A03
 #define PIN_VOUT PIN_B6
@@ -48,6 +48,7 @@
 	ADCSRA |= _BV(ADEN);
 #endif
 
+
 #ifdef CARD_B02
 #define PIN_VOUT PIN_B5
 #define PIN_POWER_ENABLE PORTB1
@@ -65,6 +66,7 @@
 #include "cardb_utils.h"
 #endif
 
+
 #ifdef CARD_A03
 const char p_build[] PROGMEM = "Card A v0.3\n";
 #endif
@@ -76,10 +78,10 @@ const char p_conf_fbdac[] PROGMEM = "configured fbdac\n";
 const char p_conf_currmon[] PROGMEM = "configured currmon\n";
 const char p_cmd[] PROGMEM = "cmd: ";
 const char p_read[] PROGMEM = "read: ";
-const char p_cm_busv[] PROGMEM = "bus V: 0x%02x%02x %d * 0.004\n";
-const char p_cm_shuntv[] PROGMEM = "shunt V: 0x%02x%02x %d * 0.00001\n";
-const char p_cm_cur[] PROGMEM = "current: 0x%02x%02x %d * 0.00012207\n";
-const char p_cm_pow[] PROGMEM = "power: 0x%02x%02x %d * 0.00012207 * 20\n";
+const char p_cm_busv[] PROGMEM = "bus V: 0x%02x%02x %d * 0.004 = %dmV\n";
+const char p_cm_shuntv[] PROGMEM = "shunt V: 0x%02x%02x %d * 0.00001 = %dmV\n";
+const char p_cm_cur[] PROGMEM = "current: 0x%02x%02x %d * 0.00012207 = %dmA\n";
+const char p_cm_pow[] PROGMEM = "power: 0x%02x%02x %d * 0.00012207 * 20 = %dmW\n";
 const char p_write[] PROGMEM = "write: ";
 const char p_prompt_fbdac[] PROGMEM = "fbdac val: ";
 const char p_led[] PROGMEM = "led: ";
@@ -91,19 +93,7 @@ const char p_broken[] PROGMEM = "state broken\n";
 const char p_end[] PROGMEM = "end";
 const char p_usi_failed[] PROGMEM = "failed: %d\n";
 
-#define PRINT_USI_ERROR printf_P(p_usi_failed, USI_TWI_Get_State_Info());
-
 FILE uart_str = FDEV_SETUP_STREAM(uart_putchar, uart_getchar, _FDEV_SETUP_RW);
-
-//                        R-RPPBBBBSSSSMMM
-#define CURRMON_CONFIG  0b0011100000011111
-
-//static void delay_1s(void) {
-//  uint8_t i;
-//
-//  for (i = 0; i < 100; i++)
-//    _delay_ms(10);
-//}
 
 int main(void) {
   LED_UNSET_READY();
@@ -123,7 +113,8 @@ int main(void) {
   printf_P(p_start);
   write_fbdac(0xff); // configure FBDAC
   printf_P(p_conf_fbdac);
-  cal_currmon(); // configure currmon
+  ina219_set_config(INA_CONFIG); // configure currmon
+  ina219_cal();
   printf_P(p_conf_currmon);
   LED_SET_READY();
 
@@ -151,7 +142,6 @@ int main(void) {
       case S_RD:
         switch (promptc(p_read)) {
           case 'd':
-            //read_digipot();
             read_fbdac();
             break;
           case 'c':
@@ -171,7 +161,6 @@ int main(void) {
       case S_WR:
         switch (promptc(p_write)) {
           case 'd':
-            //write_digipot(prompti("digipot val: "));
             write_fbdac(prompti(p_prompt_fbdac));
             break;
           case 'c':
@@ -253,34 +242,6 @@ unsigned char prompti(PGM_P str) {
   return resp;
 }
 
-//void read_digipot() {
-//  unsigned char usi_send[2] = {
-//    TWI_READ(ADDR_DIGIPOT),
-//    0x00,
-//  };
-//  fputs("read digipot: ", stdout);
-//  if (USI_TWI_Start_Transceiver_With_Data(usi_send, 2))
-//    printf("(addr 0x%x) 0x%x\n", usi_send[0], usi_send[1]);
-//  else
-//    printf("failed: %d\n",  USI_TWI_Get_State_Info());
-//}
-//
-//void write_digipot(unsigned char val) {
-//  unsigned char usi_send[3] = {
-//    TWI_WRITE(ADDR_DIGIPOT),
-//    val,
-//    0x00,
-//  };
-//
-//  printf("set digipot: 0x%x\n", usi_send[1]);
-//  //usi_send[1] = 10; //prompti("Set value: ");
-//  if (! USI_TWI_Start_Transceiver_With_Data(usi_send, 2))
-//    printf("failed: %d\n", USI_TWI_Get_State_Info());
-//  //  printf("after write: 0x%x 0x%x 0x%x\n", usi_send[0], usi_send[1], usi_send[2]);
-//  //else
-//  //  printf("failed: %d\n", USI_TWI_Get_State_Info());
-//}
-
 void read_fbdac() {
   unsigned char usi_send[3] = {
     TWI_READ(ADDR_FBDAC),
@@ -308,6 +269,45 @@ void write_fbdac(unsigned char val) {
   //printf("set fbdac: 0x%x\n", usi_send[2]);
   if (! USI_TWI_Start_Transceiver_With_Data(usi_send, 4))
     PRINT_USI_ERROR;
+}
+
+void read_currmon() {
+  ina219_config_t config;
+  //ina219_data_t values;
+  reg16_t data = 0;
+  float temp_f = 0;
+  int16_t temp_i = 0;
+  printf("Read currmon: 0x%x\n", INA219_ADDR);
+
+  // config
+  config = ina219_get_config();
+  printf("config: 0x%x\n", config.reg.word);
+
+  // measurement values
+  //values = ina219_read();
+
+  // bus V
+  value = ina219_read_data_reg(INA219_REG_BUSV);
+  value.word >> 3;
+  temp_f = value.word * 0.004f;
+  temp_i = temp_f * 1000;
+  printf_P(p_cm_busv, value.bytes[0], value.bytes[1], value.word, temp_i);
+
+  // shunt V
+  value = ina219_read_data_reg(INA219_REG_SHUNTV);
+  temp_f = value.word * 0.00001f;
+  temp_i = temp_f * 1000;
+  printf_P(p_cm_shuntv, value.bytes[0], value.bytes[1], value.word, temp_i);
+
+  // current
+  value = ina219_read_data_reg(INA219_REG_CURR);
+  temp_f = value.word * INA219_LSB_CUR;
+  printf_P(p_cm_cur, value.bytes[0], value.bytes[1], value.word, temp_i);
+
+  // power
+  value = ina219_read_data_reg(INA219_REG_POWER);
+  temp_f = value.word * INA219_LSB_POW;
+  printf_P(p_cm_pow, value.bytes[0], value.bytes[1], value.word, temp_i);
 }
 
 void read_vout() {

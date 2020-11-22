@@ -1,3 +1,4 @@
+#define INA219_ADDR 0b1000000
 
 #define INA219_REG_CONFIG 0
 #define INA219_REG_SHUNTV 1
@@ -6,9 +7,11 @@
 #define INA219_REG_CURR   4
 #define INA219_REG_CAL    5
 
-#define CURRMON_LSB_CUR 0.00012207f
-#define CURRMON_LSB_POW (CURRMON_LSB_CUR * 20.0f)
-#define CURRMON_CAL     (0.04096f / (CURRMON_LSB_CUR * 0.080f))
+//                       R-RPPBBBBSSSSMMM
+#define INA219_CONFIG  0b0011100000011111
+#define INA219_LSB_CUR 0.00012207f
+#define INA219_LSB_POW (INA219_LSB_CUR * 20.0f)
+#define INA219_CAL     (0.04096f / (INA219_LSB_CUR * 0.080f))
 
 struct ina219_config_fields {
   uint8_t reset : 1;
@@ -29,9 +32,13 @@ typedef union ina219_config {
 } ina219_config_t;
 
 typedef struct ina219_data {
-  // TODO
+  float bus_v;
+  float shunt_v;
+  float current;
+  float power;
 } ina219_data_t;
 
 char ina219_config(ina219_config_t);
+reg16_t ina219_read_data_reg(uint8_t);
 ina219_data_t ina219_read();
 
