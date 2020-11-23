@@ -163,7 +163,6 @@
 // Project local defines
 #define TWI_READ(addr) ((addr << TWI_ADR_BITS) | (TRUE << TWI_READ_BIT))
 #define TWI_WRITE(addr) ((addr << TWI_ADR_BITS) | (FALSE << TWI_READ_BIT))
-#define PRINT_USI_ERROR printf_P(p_usi_failed, USI_TWI_Get_State_Info());
 
 
 //********** Prototypes **********//

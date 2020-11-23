@@ -1,10 +1,6 @@
 
-#define LED_SET_READY()  \
-        ;
-#define LED_UNSET_READY()  \
-        ;
-#define LED_SET_POWER()  \
-        ;
-#define LED_UNSET_POWER()  \
-        ;
+void LED_SET_READY();
+void LED_UNSET_READY();
+void LED_SET_POWER();
+void LED_UNSET_POWER();
 

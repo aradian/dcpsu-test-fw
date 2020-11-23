@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #define INA219_ADDR 0b1000000
 
 #define INA219_REG_CONFIG 0
@@ -38,7 +40,9 @@ typedef struct ina219_data {
   float power;
 } ina219_data_t;
 
-char ina219_config(ina219_config_t);
+char ina219_set_config(ina219_config_t);
+char ina219_set_cal();
+ina219_config_t ina219_get_config();
 reg16_t ina219_read_data_reg(uint8_t);
 ina219_data_t ina219_read();
 

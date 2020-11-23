@@ -3,6 +3,8 @@
 
 #include "ina219.h"
 
+char ina219_error = 0;
+
 char ina219_set_config(ina219_config_t config) {
   unsigned char usi_send[4] = {
     TWI_WRITE(INA219_ADDR),
@@ -20,7 +22,7 @@ char ina219_set_config(ina219_config_t config) {
 }
 
 char ina219_set_cal() {
-  reg16_t cal = INA219_CAL;
+  reg16_t cal = {INA219_CAL};
   unsigned char usi_send[4] = {
     TWI_WRITE(INA219_ADDR),
     INA219_REG_CAL,
@@ -36,7 +38,7 @@ char ina219_set_cal() {
 
 ina219_config_t ina219_get_config() {
   ina219_config_t config;
-  config.reg = 0;
+  config.reg.word = 0;
   unsigned char usi_send[3] = {
     TWI_WRITE(INA219_ADDR),
     INA219_REG_CONFIG,
@@ -44,12 +46,12 @@ ina219_config_t ina219_get_config() {
   };
 
   if (!USI_TWI_Start_Transceiver_With_Data(usi_send, 2)) {
-    PRINT_USI_ERROR;
+    //PRINT_USI_ERROR;
     return config;
   }
   usi_send[0] = TWI_READ(INA219_ADDR);
   if (!USI_TWI_Start_Transceiver_With_Data(usi_send, 3)) {
-    PRINT_USI_ERROR;
+    //PRINT_USI_ERROR;
     return config;
   }
   config.reg.bytes[0] = usi_send[1];
@@ -63,15 +65,15 @@ reg16_t ina219_read_data_reg(uint8_t reg) {
     reg,
     0x00,
   };
-  reg16_t value = 0;
+  reg16_t value = {0};
 
   if (!USI_TWI_Start_Transceiver_With_Data(usi_send, 2)) {
-    PRINT_USI_ERROR;
+    //PRINT_USI_ERROR;
     return value;
   }
   usi_send[0] = TWI_READ(INA219_ADDR);
   if (!USI_TWI_Start_Transceiver_With_Data(usi_send, 3)) {
-    PRINT_USI_ERROR;
+    //PRINT_USI_ERROR;
     return value;
   }
   value.bytes[0] = usi_send[1];
@@ -81,7 +83,7 @@ reg16_t ina219_read_data_reg(uint8_t reg) {
 
 ina219_data_t ina219_read() {
   ina219_data_t data = {0, 0, 0, 0};
-  reg16_t value = 0;
+  reg16_t value = {0};
 
   // bus V
   value = ina219_read_data_reg(INA219_REG_BUSV);

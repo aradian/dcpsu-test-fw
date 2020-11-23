@@ -1,7 +1,6 @@
 
 #include "defines.h"
 
-#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -66,6 +65,7 @@
 #include "cardb_utils.h"
 #endif
 
+#define PRINT_USI_ERROR printf_P(p_usi_failed, USI_TWI_Get_State_Info());
 
 #ifdef CARD_A03
 const char p_build[] PROGMEM = "Card A v0.3\n";
@@ -73,7 +73,7 @@ const char p_build[] PROGMEM = "Card A v0.3\n";
 #ifdef CARD_B02
 const char p_build[] PROGMEM = "Card B v0.2\n";
 #endif
-const char p_start[] PROGMEM = "start v0.4\n";
+const char p_start[] PROGMEM = "start v0.5\n";
 const char p_conf_fbdac[] PROGMEM = "configured fbdac\n";
 const char p_conf_currmon[] PROGMEM = "configured currmon\n";
 const char p_cmd[] PROGMEM = "cmd: ";
@@ -111,11 +111,16 @@ int main(void) {
 
   printf_P(p_build);
   printf_P(p_start);
-  write_fbdac(0xff); // configure FBDAC
+
+  // configure FBDAC
+  write_fbdac(0xff);
   printf_P(p_conf_fbdac);
-  ina219_set_config(INA_CONFIG); // configure currmon
-  ina219_cal();
+
+  // configure currmon
+  ina219_set_config((ina219_config_t)(reg16_t)(uint16_t)INA219_CONFIG);
+  ina219_set_cal();
   printf_P(p_conf_currmon);
+
   LED_SET_READY();
 
   unsigned char state = S_CMD;
@@ -274,7 +279,7 @@ void write_fbdac(unsigned char val) {
 void read_currmon() {
   ina219_config_t config;
   //ina219_data_t values;
-  reg16_t data = 0;
+  reg16_t value = {0};
   float temp_f = 0;
   int16_t temp_i = 0;
   printf("Read currmon: 0x%x\n", INA219_ADDR);
