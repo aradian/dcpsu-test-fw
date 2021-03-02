@@ -1,6 +1,5 @@
 
 #include "cardb_utils.h"
-#include "ncp5623.h"
 
 void LED_SET_READY() {
   ncp5623_cmd_set_cur(31);

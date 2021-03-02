@@ -76,8 +76,8 @@ reg16_t ina219_read_data_reg(uint8_t reg) {
     //PRINT_USI_ERROR;
     return value;
   }
-  value.bytes[0] = usi_send[1];
-  value.bytes[1] = usi_send[2];
+  value.bytes[1] = usi_send[1];
+  value.bytes[0] = usi_send[2];
   return value;
 }
 

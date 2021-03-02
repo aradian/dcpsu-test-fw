@@ -1,4 +1,5 @@
-#include <stdint.h>
+
+#include "common.h"
 
 #define INA219_ADDR 0b1000000
 
@@ -9,11 +10,25 @@
 #define INA219_REG_CURR   4
 #define INA219_REG_CAL    5
 
+//                       Reset
+//                       |
+//                       | Bus Voltage Range: 32V
+//                       | |
+//                       | |PGA for shunt voltage: /8 ±320mV
+//                       | |||
+//                       | |||Bus ADC resolution: 12bit
+//                       | |||||||
+//                       | |||||||Shunt ADC resolution: 12bit
+//                       | |||||||||||
+//                       | |||||||||||Mode: shunt and bus, continuous
+//                       | ||||||||||||||
 //                       R-RPPBBBBSSSSMMM
-#define INA219_CONFIG  0b0011100000011111
-#define INA219_LSB_CUR 0.00012207f
-#define INA219_LSB_POW (INA219_LSB_CUR * 20.0f)
-#define INA219_CAL     (0.04096f / (INA219_LSB_CUR * 0.080f))
+#define INA219_CONFIG  0b0011100110011111
+#define INA219_MAX_CUR 4.0f
+#define INA219_RSHUNT  0.080f
+#define INA219_LSB_CUR (INA219_MAX_CUR / 32768)
+#define INA219_LSB_POW (INA219_LSB_CUR * 20)
+#define INA219_CAL     (0.04096f / (INA219_LSB_CUR * INA219_RSHUNT))
 
 struct ina219_config_fields {
   uint8_t reset : 1;
@@ -24,10 +39,6 @@ struct ina219_config_fields {
   uint8_t shunt_adc : 4;
   uint8_t mode : 3;
 };
-typedef union u_reg_16 {
-  uint16_t word;
-  uint8_t bytes[2];
-} reg16_t;
 typedef union ina219_config {
   reg16_t reg;
   struct ina219_config_fields fields;
